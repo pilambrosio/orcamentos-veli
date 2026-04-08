@@ -618,9 +618,10 @@ function renderCards() {
       <div class="card-footer">
         <div class="card-date">${fmtDate(p.updatedAt || p.createdAt)}</div>
         <div class="card-actions">
-          ${hasLink ? `<button class="cta" onclick="copyLink('${p.shortUrl || p.gistUrl}', this)" title="Copiar link">Copiar link</button>` : ''}
-          ${hasLink ? `<a class="cta amber" href="${p.shortUrl || p.gistUrl}" target="_blank" style="text-decoration:none">Ver →</a>` : ''}
-          <button class="cta" onclick="openEdit('${p.id}')">Editar</button>
+          <button class="cta primary" onclick="openFullEditor('${p.id}')" title="Abrir editor completo">Editar proposta</button>
+          ${hasLink ? `<button class="cta" onclick="copyLink('${p.shortUrl || p.gistUrl}', this)" title="Copiar link">↗ Link</button>` : ''}
+          ${hasLink ? `<a class="cta" href="${p.shortUrl || p.gistUrl}" target="_blank" style="text-decoration:none">Ver →</a>` : ''}
+          <button class="cta" onclick="openEdit('${p.id}')" title="Editar metadados">⋯</button>
           <button class="cta danger" onclick="deleteProposal('${p.id}')">×</button>
         </div>
       </div>`;
@@ -714,7 +715,14 @@ async function createProposal(openEditor) {
   await pushRegistry();
 
   if (openEditor) {
-    window.open(QUOTE_FILE, '_blank');
+    // Pre-seed empty state so the editor knows its docNum
+    const saveKey = 'veli_editor_' + docNum.replace(/[^a-z0-9]/gi, '_');
+    if (!localStorage.getItem(saveKey)) {
+      // Store a minimal seed so the edit URL resolves
+      const seed = { version: 2, savedAt: now.toISOString(), state: { mode:'options', items:[], frags:[], fragIntro:'', nextItemId:1, nextFragId:1 }, fields: { clientName: client, clientEvent: event } };
+      try { localStorage.setItem(saveKey, JSON.stringify(seed)); } catch {}
+    }
+    window.open(QUOTE_FILE + '?edit=' + encodeURIComponent(docNum), '_blank');
   }
 }
 
@@ -836,6 +844,40 @@ function toast(msg) {
 /* ══════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════
+   OPEN FULL PROPOSAL EDITOR
+══════════════════════════════════════════════ */
+function openFullEditor(id) {
+  const p = proposals.find(x => x.id === id);
+  if (!p) return;
+  const editorFile = 'orcamento-veli-v5.html';
+  const docNum = p.docNum;
+  const saveKey = 'veli_editor_' + docNum.replace(/[^a-z0-9]/gi, '_');
+  const hasSaved = !!localStorage.getItem(saveKey);
+
+  if (hasSaved) {
+    window.open(editorFile + '?edit=' + encodeURIComponent(docNum), '_blank');
+  } else if (p.stateUrl) {
+    toast('Carregando estado da proposta…');
+    fetch(p.stateUrl + '?t=' + Date.now())
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(data => {
+        try { localStorage.setItem(saveKey, JSON.stringify(data)); } catch {}
+        window.open(editorFile + '?edit=' + encodeURIComponent(docNum), '_blank');
+      })
+      .catch(() => {
+        if (confirm('Estado não encontrado para ' + docNum + '. Abrir editor em branco?'))
+          window.open(editorFile, '_blank');
+      });
+  } else {
+    if (confirm('Proposta sem estado salvo. Abrir editor em branco?
+
+(O editor cria um vínculo automaticamente quando publicado.)'))
+      window.open(editorFile, '_blank');
+  }
+}
+
+
 boot();
 </script>
 </body>

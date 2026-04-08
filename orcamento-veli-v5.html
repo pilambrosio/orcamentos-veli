@@ -19,6 +19,7 @@
   --mist:   #f2ead8;
   --canvas: #bfaf9e;
   --toggle-on: #b8832a;
+  --green: #2d6a4f;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Cormorant Garamond',Georgia,serif;background:var(--canvas);
@@ -638,12 +639,13 @@ const br  = v => String(v).replace('.', ',');
 /* ── CALC per item ──────────────────────────────── */
 function calcItem(item) {
   if (item.type === 'flat') return { costUnit: item.flatPrice, price: item.flatPrice, total: item.flatPrice * item.qty };
-  const waxCost  = (item.waxG / 1000) * item.waxKg;
-  const fragCost = (item.waxG * (item.fragLoad / 100) / 1000) * item.fragKg;
-  const matTotal = (waxCost + fragCost + item.wickCost) * 1.12;
-  const labor    = (item.hours * item.rate) / item.qty;
-  const costUnit = matTotal + labor;
-  const price    = costUnit / (1 - item.margin / 100);
+  const waxCost    = (item.waxG / 1000) * item.waxKg;
+  const fragCost   = (item.waxG * (item.fragLoad / 100) / 1000) * item.fragKg;
+  const vesselCost = (item.vesselCost > 0) ? item.vesselCost : 0;
+  const matTotal   = (waxCost + fragCost + item.wickCost + vesselCost) * 1.12;
+  const labor      = (item.hours * item.rate) / item.qty;
+  const costUnit   = matTotal + labor;
+  const price      = costUnit / (1 - item.margin / 100);
   return { costUnit, price, total: price * item.qty };
 }
 
@@ -668,7 +670,8 @@ function getItemFromDOM(id) {
       fragLoad: n('fragLoad') || 8,
       hours: n('hours') || 8,
       rate: n('rate') || 70,
-      margin: n('margin') || 50
+      margin: n('margin') || 50,
+      vesselCost: n('vesselCost')
     };
   } else {
     return { ...base, flatPrice: n('flatPrice') || 0, desc: g('desc') || '' };
@@ -683,7 +686,8 @@ function addItem(type) {
   const defaults = type === 'candle'
     ? { id, type, name: 'Vela artesanal ' + id, qty: 36,
         waxType:'coco', wickType:'algodao', waxG:450, waxKg:40.33,
-        wickCost:1.20, fragKg:65, fragLoad:8, hours:8, rate:70, margin:50 }
+        wickCost:1.20, fragKg:65, fragLoad:8, hours:8, rate:70, margin:50,
+        vesselCost:0 }
     : { id, type, name: 'Serviço ' + id, qty: 1, flatPrice: 0, desc: '' };
   STATE.items.push(defaults);
   renderBuilder();
@@ -947,6 +951,10 @@ function renderBuilder() {
           <label>Margem (%)</label>
           <input type="number" id="i-${item.id}-margin" value="${item.margin}" min="0" max="90" step="5" oninput="syncAndRender()">
         </div>
+        <div class="field" style="border-top:1px solid #a09080;padding-top:.6rem;margin-top:.2rem">
+          <label>Vasilhame (R$/un, 0 = não incluir)</label>
+          <input type="number" id="i-${item.id}-vesselCost" value="${item.vesselCost||0}" min="0" step="0.50" oninput="syncAndRender()">
+        </div>
         ` : `
         <div class="field">
           <label>Quantidade</label>
@@ -1054,6 +1062,7 @@ function render() {
         subParts.push(WAX_TYPES[item.waxType] || item.waxType);
         subParts.push(WICK_TYPES[item.wickType] || item.wickType);
         if (item.fragLoad) subParts.push('Fragrância blend ' + item.fragLoad + '%');
+        if (item.vesselCost > 0) subParts.push('Vasilhame incluso');
       } else if (item.desc) {
         subParts.push(item.desc);
       }
@@ -1072,18 +1081,61 @@ function render() {
     quoteHTML += `</tbody><tfoot>`;
 
     if (STATE.mode === 'packages') {
-      quoteHTML += `<tr>
-        <td colspan="2">Total do pacote</td>
-        <td colspan="2" class="r"><span class="total-val">${fmt(grandTotal)}</span></td>
-      </tr>`;
+      // If discount: show subtotal → discount row → final
+      if (togDiscount && discAmount > 0) {
+        quoteHTML += `<tr>
+          <td colspan="2" style="border-top:1.5px solid var(--ink);color:var(--taupe);font-size:10px;letter-spacing:2px;text-transform:uppercase">Subtotal</td>
+          <td colspan="2" class="r" style="border-top:1.5px solid var(--ink)"><span style="font-family:'Playfair Display',serif;font-size:clamp(18px,3.5vw,24px);font-style:italic;color:var(--ink)">${fmt(grandTotal)}</span></td>
+        </tr>
+        <tr>
+          <td colspan="2" style="color:var(--amber);font-size:10px;letter-spacing:2px;text-transform:uppercase;padding-top:.25rem">
+            ${discDesc || (discType === 'percent' ? discValue + '% de desconto' : 'Desconto')}
+          </td>
+          <td colspan="2" class="r" style="padding-top:.25rem;font-family:'Playfair Display',serif;font-size:17px;font-style:italic;color:var(--amber)">− ${fmt(discAmount)}</td>
+        </tr>
+        <tr>
+          <td colspan="2" style="font-size:10px;letter-spacing:2px;text-transform:uppercase;border-top:1px solid var(--sand);padding-top:.75rem"><strong>Total a pagar</strong></td>
+          <td colspan="2" class="r" style="border-top:1px solid var(--sand);padding-top:.75rem"><span class="total-val" style="color:var(--green,#2d6a4f)">${fmt(finalTotal)}</span></td>
+        </tr>`;
+      } else {
+        quoteHTML += `<tr>
+          <td colspan="2" style="border-top:1.5px solid var(--ink)">Total a pagar</td>
+          <td colspan="2" class="r" style="border-top:1.5px solid var(--ink)"><span class="total-val">${fmt(grandTotal)}</span></td>
+        </tr>`;
+      }
     } else {
-      // options mode: show individual totals, no grand sum
-      quoteHTML += `<tr>
-        <td colspan="4" style="font-family:'Lato',sans-serif;font-size:11px;color:var(--taupe);
-          font-style:italic;letter-spacing:.3px;padding-top:1.25rem;border-top:1.5px solid var(--ink);">
-          Os valores acima são por opção independente — o contratante escolhe uma das alternativas.
-        </td>
-      </tr>`;
+      // options mode: show per-option discount summary if applicable
+      if (togDiscount && discAmount > 0) {
+        const itemDiscount = discAmount / renderItems.length;
+        quoteHTML += `<tr>
+          <td colspan="4" style="border-top:1.5px solid var(--ink);padding-top:1.25rem">
+            <div style="display:flex;flex-direction:column;gap:.5rem">
+              <div style="font-family:'Lato',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--taupe)">
+                Os valores acima são por opção independente. Desconto aplicável:
+              </div>
+              ${renderItems.map(item => {
+                const c = calcs[item.id];
+                const d = discType === 'percent' ? c.total * discValue / 100 : discAmount / renderItems.length;
+                const f = c.total - d;
+                return `<div style="display:flex;justify-content:space-between;align-items:baseline;border-left:2px solid var(--amber);padding-left:.75rem">
+                  <span style="font-family:'Playfair Display',serif;font-style:italic;font-size:15px">${item.name}</span>
+                  <span>
+                    <span style="font-family:'Lato',sans-serif;font-size:11px;color:var(--amber);text-decoration:line-through;margin-right:.5rem">${fmt(c.total)}</span>
+                    <span style="font-family:'Playfair Display',serif;font-size:clamp(17px,3vw,22px);font-style:italic;font-weight:700">${fmt(f)}</span>
+                  </span>
+                </div>`;
+              }).join('')}
+            </div>
+          </td>
+        </tr>`;
+      } else {
+        quoteHTML += `<tr>
+          <td colspan="4" style="font-family:'Lato',sans-serif;font-size:11px;color:var(--taupe);
+            font-style:italic;letter-spacing:.3px;padding-top:1.25rem;border-top:1.5px solid var(--ink);">
+            Os valores acima são por opção independente — o contratante escolhe uma das alternativas.
+          </td>
+        </tr>`;
+      }
     }
 
     quoteHTML += `</tfoot></table></div>`;
@@ -1110,28 +1162,8 @@ function render() {
 
   document.getElementById('sec-quote').innerHTML = quoteHTML;
 
-  /* ── § DESCONTO ── */
-  let discHTML = '';
-  if (togDiscount && discValue > 0 && renderItems.length > 0) {
-    secNum++;
-    const secN = zeroPad(secNum);
-    discHTML = `<div class="block">
-      <div class="sec-head"><span class="sec-num">${secN}</span><span class="sec-title">Desconto</span></div>
-      <div class="discount-block">
-        <div class="disc-label">Desconto aplicado</div>
-        <div class="disc-line">
-          <span>${discDesc || (discType === 'percent' ? discValue + '% de desconto' : 'Desconto especial')}</span>
-          <span class="disc-amount">− ${fmt(discAmount)}</span>
-        </div>
-        ${STATE.mode === 'packages' ? `
-        <div class="disc-line" style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid rgba(184,131,42,.3)">
-          <span style="font-family:'Lato',sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--taupe)">Total com desconto</span>
-          <span class="disc-amount">${fmt(finalTotal)}</span>
-        </div>` : ''}
-      </div>
-    </div>`;
-  }
-  document.getElementById('sec-discount').innerHTML = discHTML;
+  // Discount is now integrated in the tfoot of sec-quote
+  document.getElementById('sec-discount').innerHTML = '';
 
   /* ── § FRAGRÂNCIAS — managed by syncFragSection() ── */
   syncFragSection(togFrag, secNum);
@@ -1186,48 +1218,206 @@ function toggleBuilder() {
   if (btn) btn.textContent = isOpen ? '× Fechar painel' : '⊞ Montar orçamento';
 }
 
+/* ══════════════════════════════════════════════════
+   EDITOR STATE — persist & restore full proposal
+══════════════════════════════════════════════════ */
+
+function captureEditorState() {
+  // Capture frag DOM content before serialising
+  const fragsDOM = [];
+  const grid = document.getElementById('frag-grid');
+  if (grid) {
+    Array.from(grid.querySelectorAll('.frag-card-inner')).forEach(inner => {
+      fragsDOM.push({
+        id: STATE.nextFragId++,
+        name:  inner.querySelector('.frag-name')?.textContent?.trim()  || '',
+        combo: inner.querySelector('.frag-combo')?.textContent?.trim() || '',
+        mood:  inner.querySelector('.frag-mood')?.textContent?.trim()  || '',
+        note:  inner.querySelector('.frag-note')?.textContent?.trim()  || '',
+        keywords: Array.from(inner.querySelectorAll('.kw-text'))
+                       .map(el => el.textContent.trim()).filter(Boolean)
+      });
+    });
+  }
+  return {
+    version: 2,
+    savedAt: new Date().toISOString(),
+    state: { ...STATE, frags: fragsDOM.length ? fragsDOM : STATE.frags },
+    fields: {
+      clientName:    document.getElementById('client-name')?.value    || '',
+      clientContact: document.getElementById('client-contact')?.value || '',
+      clientEvent:   document.getElementById('client-event')?.value   || '',
+      clientEvDate:  document.getElementById('client-ev-date')?.value || '',
+      prestName:     document.getElementById('prest-name')?.value     || '',
+      prestContact:  document.getElementById('prest-contact')?.value  || '',
+      descText:      document.getElementById('desc-text')?.value      || '',
+      fragIntro:     STATE.fragIntro,
+      // builder toggles
+      togGraphic:    document.getElementById('tog-graphic')?.checked  || false,
+      togDiscount:   document.getElementById('tog-discount')?.checked || false,
+      togFrag:       document.getElementById('tog-frag')?.checked     || false,
+      // discount config
+      discType:      document.getElementById('disc-type')?.value      || 'percent',
+      discValue:     document.getElementById('disc-value')?.value     || '10',
+      discDesc:      document.getElementById('disc-desc')?.value      || '',
+      // graphic design
+      gdPrice:       document.getElementById('gd-price')?.value       || '500',
+      gdDesc:        document.getElementById('gd-desc')?.value        || '',
+      // payment
+      payMethod:     document.querySelector('input[name="pay-method"]:checked')?.value || 'pix',
+    }
+  };
+}
+
+function restoreEditorState(data) {
+  if (!data || !data.state) return false;
+  try {
+    // Restore STATE
+    Object.assign(STATE, data.state);
+    STATE.nextFragId = Math.max(STATE.nextFragId, (data.state.frags || []).length + 2);
+
+    // Restore form fields
+    const f = data.fields || {};
+    const sv = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    sv('client-name',    f.clientName);
+    sv('client-contact', f.clientContact);
+    sv('client-event',   f.clientEvent || 'Lançamento de disco');
+    sv('client-ev-date', f.clientEvDate);
+    sv('prest-name',     f.prestName);
+    sv('prest-contact',  f.prestContact);
+    sv('desc-text',      f.descText);
+    if (f.fragIntro) STATE.fragIntro = f.fragIntro;
+
+    // Restore toggles
+    const tog = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+    tog('tog-graphic',  f.togGraphic);
+    tog('tog-discount', f.togDiscount);
+    tog('tog-frag',     f.togFrag);
+
+    // Restore discount config
+    sv('disc-type',  f.discType);
+    sv('disc-value', f.discValue);
+    sv('disc-desc',  f.discDesc);
+    sv('gd-price',   f.gdPrice);
+    sv('gd-desc',    f.gdDesc);
+
+    // Payment method
+    if (f.payMethod) {
+      const radio = document.querySelector('input[name="pay-method"][value="' + f.payMethod + '"]');
+      if (radio) radio.checked = true;
+    }
+
+    return true;
+  } catch(e) {
+    console.warn('restoreEditorState failed:', e);
+    return false;
+  }
+}
+
+// Auto-save key based on current doc number
+function editorSaveKey() {
+  const dn = document.getElementById('doc-num')?.textContent?.trim() || 'default';
+  return 'veli_editor_' + dn.replace(/[^a-z0-9]/gi, '_');
+}
+
+let _autoSaveTimer;
+function scheduleAutoSave() {
+  clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(() => {
+    const data = captureEditorState();
+    try { localStorage.setItem(editorSaveKey(), JSON.stringify(data)); } catch {}
+  }, 1500);
+}
+
 /* ── DATES / META ─────────────────────────────────  */
 function boot() {
-  const t = new Date();
-  const v = new Date(t); v.setDate(v.getDate() + 15);
-  const fd = d => d.toLocaleDateString('pt-BR');
-  document.getElementById('issue-date').textContent  = fd(t);
-  document.getElementById('valid-date').textContent  = fd(v);
-  document.getElementById('footer-date').textContent = fd(t);
-  document.getElementById('city-date').textContent   = fd(t);
-  const n = String(t.getFullYear()).slice(-2) + String(t.getMonth()+1).padStart(2,'0') + String(t.getDate()).padStart(2,'0');
-  document.getElementById('doc-num').textContent = '#' + n + '-01';
-  updateWALink('#' + n + '-01');
-  // token
-  const saved = localStorage.getItem('veli_gh_token');
-  if (saved) {
-    document.getElementById('gh-token').value = saved;
+  // ── Restore token ───────────────────────────────────
+  const savedToken = localStorage.getItem('veli_gh_token');
+  if (savedToken) {
+    document.getElementById('gh-token').value = savedToken;
     document.getElementById('token-saved').style.display = 'inline-block';
   }
-  const savedGist = localStorage.getItem('veli_gist_id');
-  if (savedGist) {
+
+  // ── Set constant dates ──────────────────────────────
+  const t  = new Date();
+  const v  = new Date(t); v.setDate(v.getDate() + 15);
+  const fd = d => d.toLocaleDateString('pt-BR');
+  document.getElementById('footer-date').textContent = fd(t);
+  document.getElementById('city-date').textContent   = fd(t);
+
+  // ── Check if this is an edit request from the hub ───
+  const urlParams  = new URLSearchParams(window.location.search);
+  const editDocNum = urlParams.get('edit'); // e.g. "#240408-01"
+
+  if (editDocNum) {
+    // EDIT MODE: restore previously saved proposal
+    const saveKey = 'veli_editor_' + editDocNum.replace(/[^a-z0-9]/gi, '_');
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(saveKey)); } catch {}
+
+    if (saved && saved.version >= 2) {
+      document.getElementById('doc-num').textContent     = editDocNum;
+      document.getElementById('issue-date').textContent  = fd(new Date(saved.savedAt || t));
+      document.getElementById('valid-date').textContent  = fd(v);
+      updateWALink(editDocNum);
+
+      restoreEditorState(saved);
+
+      // Show edit mode indicator in chrome bar
+      const ind = document.createElement('span');
+      ind.id = 'edit-indicator';
+      ind.style.cssText = 'font-family:Lato,sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--amber);padding:9px 0;';
+      ind.textContent = '✦ editando proposta salva';
+      document.getElementById('chrome').appendChild(ind);
+    } else {
+      // No saved state — fallback to fresh + alert
+      alert('Estado salvo não encontrado para ' + editDocNum + '. Abrindo editor em branco.');
+      _loadFreshDefaults(t, v, fd);
+    }
+  } else {
+    _loadFreshDefaults(t, v, fd);
+  }
+
+  // Show gist reset btn if already published
+  const currentDocNum = document.getElementById('doc-num').textContent.trim();
+  const _gKey = 'veli_gist_' + currentDocNum.replace(/[^a-z0-9]/gi, '_');
+  if (localStorage.getItem(_gKey)) {
     document.getElementById('reset-gist-btn').style.display = 'inline-block';
   }
-  // seed two default items
-  addItem('candle'); // after this STATE.items has id=1
+
+  renderBuilder();
+  render();
+
+  // Auto-save on any user interaction
+  document.addEventListener('input',  scheduleAutoSave);
+  document.addEventListener('change', scheduleAutoSave);
+}
+
+function _loadFreshDefaults(t, v, fd) {
+  const n = String(t.getFullYear()).slice(-2) + String(t.getMonth()+1).padStart(2,'0') + String(t.getDate()).padStart(2,'0');
+  let seq = 1;
+  while (localStorage.getItem('veli_editor_%23' + n + '-' + String(seq).padStart(2,'0'))) seq++;
+  const _docNum = '#' + n + '-' + String(seq).padStart(2,'0');
+  document.getElementById('doc-num').textContent    = _docNum;
+  document.getElementById('issue-date').textContent = fd(t);
+  document.getElementById('valid-date').textContent  = fd(v);
+  updateWALink(_docNum);
+
+  addItem('candle');
   STATE.items[0].name = 'Vela de coco 550ml'; STATE.items[0].waxG = 450; STATE.items[0].qty = 36;
   addItem('candle');
   STATE.items[1].name = 'Vela de coco 150ml'; STATE.items[1].waxG = 120; STATE.items[1].qty = 36;
   STATE.items[1].wickCost = 0.70; STATE.items[1].hours = 5;
-  // seed two default frags
   STATE.frags = [
     { id: STATE.nextFragId++, name: 'Véu', combo: 'Jasmim · Baunilha',
       mood: 'A inocência que esconde o desejo. Floral na abertura, quente e carnal no fundo.',
-      note: 'O jasmim começa delicado e termina profundo, quase animal. A baunilha ancora com calor de pele. Referência: Chanel Nº5, Dior J\'adore. Disponível no Mercado Central, Candele, Aromapack.',
+      note: "O jasmim começa delicado e termina profundo, quase animal. A baunilha ancora com calor de pele. Referência: Chanel Nº5, Dior J'adore. Disponível no Mercado Central, Candele, Aromapack.",
       keywords: ['inocência', 'feminino', 'desejo', 'sofisticação'] },
     { id: STATE.nextFragId++, name: 'Brasa', combo: 'Sândalo · Rosa',
       mood: 'O mistério que queima. A rosa é a inocência visível; o sândalo é o que está por baixo.',
       note: 'A rosa perde docilidade e ganha tensão com o sândalo. Referência: Tom Ford, YSL. Prefira sândalo em essência concentrada.',
       keywords: ['noturno', 'mistério', 'sedução', 'tensão'] }
   ];
-
-  renderBuilder();
-  render();
 }
 
 /* ── WHATSAPP LINK ────────────────────────────────────  */
@@ -1261,7 +1451,9 @@ function clearToken() {
 function tokenChanged() { document.getElementById('token-saved').style.display = 'none'; }
 function resetGist() {
   if (!confirm('Isso vai criar um novo gist — o link atual mudará. Continuar?')) return;
-  localStorage.removeItem('veli_gist_id');
+  const docNum = document.getElementById('doc-num')?.textContent?.trim() || 'orcamento';
+  const gistKey = 'veli_gist_' + docNum.replace(/[^a-z0-9]/gi, '_');
+  localStorage.removeItem(gistKey);
   document.getElementById('reset-gist-btn').style.display = 'none';
   setProgress(0, 'Novo gist será criado na próxima publicação.');
 }
@@ -1345,6 +1537,59 @@ function captureCurrentState() {
   return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
 }
 
+/* ── AUTO-REGISTER IN HUB REGISTRY ─────────────────
+   After publish, updates the hub's veli-registry.json gist
+   with this proposal's metadata (fire-and-forget).
+─────────────────────────────────────────────────── */
+async function registerInHub({ docNum, gistUrl, shortUrl, gistId, stateRawUrl }) {
+  const token = getToken();
+  const registryId = localStorage.getItem('veli_registry_id');
+  if (!token || !registryId) return; // hub not set up — skip silently
+
+  // Read current registry
+  const r = await fetch('https://api.github.com/gists/' + registryId, {
+    headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' }
+  });
+  if (!r.ok) return;
+  const data = await r.json();
+  let proposals = [];
+  try { proposals = JSON.parse(data.files['veli-registry.json']?.content || '[]'); } catch {}
+
+  // Extract metadata from current document
+  const clientName = document.getElementById('client-name')?.value?.trim() || '—';
+  const event      = document.getElementById('client-event')?.value?.trim() || '';
+  const now        = new Date().toISOString();
+
+  // Compute total value (sum of all rendered item totals)
+  let totalValue = 0;
+  document.querySelectorAll('#sec-quote .total-val').forEach(el => {
+    const v = parseFloat(el.textContent.replace(/[^0-9,]/g, '').replace(',', '.'));
+    if (!isNaN(v) && v > totalValue) totalValue = v; // take largest (first option or package total)
+  });
+
+  // Upsert by docNum
+  const existing = proposals.findIndex(p => p.docNum === docNum);
+  const entry = {
+    id: existing >= 0 ? proposals[existing].id : (crypto.randomUUID?.() || gistId),
+    docNum, clientName, event, value: totalValue,
+    status: existing >= 0 ? proposals[existing].status : 'enviado',
+    gistUrl, shortUrl, stateUrl: stateRawUrl,
+    createdAt: existing >= 0 ? proposals[existing].createdAt : now,
+    updatedAt: now
+  };
+
+  if (existing >= 0) proposals[existing] = entry;
+  else proposals.unshift(entry);
+
+  // Push updated registry
+  await fetch('https://api.github.com/gists/' + registryId, {
+    method: 'PATCH',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json',
+               'Accept': 'application/vnd.github+json' },
+    body: JSON.stringify({ files: { 'veli-registry.json': { content: JSON.stringify(proposals, null, 2) } } })
+  });
+}
+
 /* ── GITHUB GIST DEPLOY ───────────────────────────
    Vantagens: sem CDN externo, sem zip, link estável,
    escopo mínimo (gist only), API com CORS nativo.
@@ -1361,7 +1606,10 @@ async function publishAndShare() {
     setProgress(15, 'Capturando estado do documento…');
     const html = captureCurrentState();
 
-    const storedGistId = localStorage.getItem('veli_gist_id');
+    // Key the gist per document number — each proposal gets its own gist
+    const docNum = document.getElementById('doc-num')?.textContent?.trim() || 'orcamento';
+    const gistKey = 'veli_gist_' + docNum.replace(/[^a-z0-9]/gi, '_');
+    const storedGistId = localStorage.getItem(gistKey);
     let gistId, ownerLogin;
 
     if (storedGistId) {
@@ -1374,13 +1622,16 @@ async function publishAndShare() {
           'Content-Type': 'application/json',
           'Accept': 'application/vnd.github+json'
         },
-        body: JSON.stringify({ files: { 'index.html': { content: html } } })
+        body: JSON.stringify({ files: {
+          'index.html': { content: html },
+          'state.json': { content: JSON.stringify(captureEditorState(), null, 2) }
+        } })
       });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
         // If 404, gist was deleted — create a new one
         if (resp.status === 404) {
-          localStorage.removeItem('veli_gist_id');
+          localStorage.removeItem(gistKey);
           btn.disabled = false;
           setProgress(0, '');
           document.getElementById('status-msg').textContent = 'Gist anterior não encontrado — clique em Publicar novamente para criar um novo.';
@@ -1405,7 +1656,10 @@ async function publishAndShare() {
         body: JSON.stringify({
           description: 'Orçamento VELI — Velas Artesanais',
           public: true,
-          files: { 'index.html': { content: html } }
+          files: {
+            'index.html': { content: html },
+            'state.json': { content: JSON.stringify(captureEditorState(), null, 2) }
+          }
         })
       });
       if (!resp.ok) {
@@ -1415,12 +1669,13 @@ async function publishAndShare() {
       const data = await resp.json();
       gistId    = data.id;
       ownerLogin = data.owner.login;
-      localStorage.setItem('veli_gist_id', gistId);
+      localStorage.setItem(gistKey, gistId);
     }
 
     // ── Build viewer URL ──────────────────────────
     // htmlpreview.github.io renders raw HTML from GitHub
-    const rawUrl = 'https://gist.githubusercontent.com/' + ownerLogin + '/' + gistId + '/raw/index.html';
+    const rawUrl     = 'https://gist.githubusercontent.com/' + ownerLogin + '/' + gistId + '/raw/index.html';
+    const stateRawUrl = 'https://gist.githubusercontent.com/' + ownerLogin + '/' + gistId + '/raw/state.json';
     const viewUrl = 'https://htmlpreview.github.io/?' + rawUrl;
 
     setProgress(85, 'Encurtando link…');
@@ -1454,6 +1709,9 @@ async function publishAndShare() {
     document.getElementById('full-link').value  = viewUrl;
     document.getElementById('result-box').style.display = 'block';
     document.getElementById('reset-gist-btn').style.display = 'inline-block';
+
+    // Auto-register in hub registry (fire-and-forget)
+    registerInHub({ docNum, gistUrl: viewUrl, shortUrl, gistId, stateRawUrl }).catch(() => {});
 
   } catch(err) {
     setProgress(0, '');
