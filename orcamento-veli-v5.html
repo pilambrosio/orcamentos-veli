@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Orçamento · Velî</title>
+<title>Orçamento · VELI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Lato:wght@300;400;700&family=Cormorant+Garamond:ital,wght@0,400;1,400;1,600&display=swap" rel="stylesheet">
 <style>
@@ -344,6 +344,17 @@ body.editor-open .frag-add-btn{display:flex}
 </head>
 <body>
 
+<!-- ═══ FIRST-TIME BANNER ══════════════════════ -->
+<div id="first-run-banner" style="max-width:900px;margin:0 auto .75rem;background:#1b130b;color:#fffdf1;
+  padding:.75rem 1.25rem;font-family:Lato,sans-serif;font-size:12px;letter-spacing:.5px;
+  line-height:1.7;display:none">
+  <strong style="letter-spacing:2px;text-transform:uppercase;font-size:10px">⚙ Configuração necessária</strong>
+  — Para publicar orçamentos, clique em <strong>⊞ Montar orçamento</strong> → botão <strong>↑ Publicar link</strong>
+  e insira seu token do GitHub. Se já usou antes em outro dispositivo ou URL, insira o token novamente.
+  <button onclick="document.getElementById('first-run-banner').style.display='none'"
+    style="float:right;background:none;border:none;color:#fffdf1;cursor:pointer;font-size:18px;line-height:1">×</button>
+</div>
+
 <!-- ═══ CHROME ══════════════════════════════ -->
 <div id="chrome">
   <span class="chrome-label">Velî · Construtor de orçamento</span>
@@ -461,9 +472,7 @@ body.editor-open .frag-add-btn{display:flex}
   <div class="hd">
     <div class="hd-left">
       <div class="hd-logo">
-        <img class="logo-img" src="https://www.figma.com/api/mcp/asset/c506e994-f0ee-4c2b-a740-eea0451f9d4a"
-          alt="VELI" onerror="this.style.display='none';document.getElementById('lf').style.display='block'">
-        <span class="logo-text" id="lf" style="display:none;">VELI</span>
+        <span class="logo-text">VELI</span>
       </div>
     </div>
     <div class="hd-right">
@@ -1336,6 +1345,10 @@ function boot() {
   if (savedToken) {
     document.getElementById('gh-token').value = savedToken;
     document.getElementById('token-saved').style.display = 'inline-block';
+  } else {
+    // Show first-run guidance when token isn't configured
+    const banner = document.getElementById('first-run-banner');
+    if (banner) banner.style.display = 'block';
   }
 
   // ── Set constant dates ──────────────────────────────

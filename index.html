@@ -257,10 +257,7 @@ select.modal-input{cursor:pointer}
 <!-- ══ TOP BAR ════════════════════════════════ -->
 <div class="topbar">
   <div class="topbar-brand">
-    <img src="https://www.figma.com/api/mcp/asset/c506e994-f0ee-4c2b-a740-eea0451f9d4a"
-      class="topbar-logo"
-      alt="VELI"
-      onerror="this.outerHTML='<span class=topbar-logo>VELI</span>'">
+    <span class="topbar-logo">VELI</span>
     <div class="topbar-divider"></div>
     <span class="topbar-sub">Orçamentos</span>
   </div>
@@ -455,7 +452,7 @@ async function loadRegistry() {
   const id = getRegId();
   if (!id) return false;
   try {
-    const r = await fetch(GH + '/' + id, { headers: ghHeaders() });
+    const r = await fetch(GH + '/' + id, { headers: { ...ghHeaders(), 'Cache-Control': 'no-cache' } });
     if (!r.ok) {
       if (r.status === 404) { localStorage.removeItem('veli_registry_id'); return false; }
       return false;
@@ -859,7 +856,7 @@ function openFullEditor(id) {
     window.open(editorFile + '?edit=' + encodeURIComponent(docNum), '_blank');
   } else if (p.stateUrl) {
     toast('Carregando estado da proposta…');
-    fetch(p.stateUrl + '?t=' + Date.now())
+    fetch(p.stateUrl + '?t=' + Date.now(), { cache: 'no-store' })
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
       .then(data => {
         try { localStorage.setItem(saveKey, JSON.stringify(data)); } catch {}
