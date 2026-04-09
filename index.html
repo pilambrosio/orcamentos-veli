@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VELI · Hub de Orçamentos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+<style>
+/* === TOKENS =============================== */
+:root{
+  --ink:#1b130b; --cream:#fffdf1; --amber:#b8832a;
+  --taupe:#7a5a3a; --sand:#ddd0bc; --mist:#f2ead8; --canvas:#c0b09e;
+  --green:#2d6a4f; --green-lt:#d8f3dc; --blue:#1d4e89; --blue-lt:#dbeafe;
+  --red:#8b2a2a; --red-lt:#fce8e8;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Lato',sans-serif;background:var(--canvas);min-height:100vh;color:var(--ink)}
+
+/* === TOP BAR ================================ */
+.topbar{
+  background:var(--ink);
+  padding:0 clamp(1.25rem,4vw,2.5rem);
+  height:60px;
+  display:flex;align-items:center;justify-content:space-between;gap:1rem;
+  position:sticky;top:0;z-index:100;
+}
+.topbar-brand{display:flex;align-items:center;gap:14px}
+.topbar-logo{
+  font-family:'Bebas Neue',Impact,sans-serif;
+  font-size:28px;letter-spacing:8px;color:var(--cream);line-height:1;
+}
+.topbar-logo img{height:26px;display:block;
+  filter:brightness(0) invert(1) sepia(1) saturate(0) brightness(1.2);}
+.topbar-divider{width:1px;height:22px;background:rgba(255,253,241,.15)}
+.topbar-sub{font-size:10px;letter-spacing:3px;text-transform:uppercase;
+  color:var(--cream);opacity:.4}
+.topbar-actions{display:flex;align-items:center;gap:8px}
+.tbtn{
+  font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  padding:8px 16px;border:1.5px solid rgba(255,253,241,.3);cursor:pointer;
+  background:transparent;color:var(--cream);transition:all .15s;white-space:nowrap;
+}
+.tbtn:hover{background:rgba(255,253,241,.1);border-color:rgba(255,253,241,.6)}
+.tbtn.primary{background:var(--amber);border-color:var(--amber);color:var(--cream)}
+.tbtn.primary:hover{background:#9e6e22;border-color:#9e6e22}
+
+/* === LAYOUT ================================= */
+.main{max-width:1100px;margin:0 auto;padding:clamp(1.5rem,4vw,2.5rem) clamp(1rem,3vw,1.5rem) 5rem}
+
+/* === STATS BAR ============================== */
+.stats-bar{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:1px;background:var(--sand);border:1px solid var(--sand);
+  margin-bottom:clamp(1.25rem,3vw,2rem);
+}
+.stat{background:var(--cream);padding:1rem 1.25rem}
+.stat-label{font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;
+  color:var(--taupe);margin-bottom:6px}
+.stat-value{font-family:'Playfair Display',Georgia,serif;font-size:clamp(20px,3.5vw,28px);
+  font-style:italic;color:var(--ink)}
+.stat-value small{font-size:13px;font-style:normal;color:var(--taupe);margin-left:4px}
+
+/* === TOOLBAR (search + filter) ============ */
+.toolbar{
+  display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+  margin-bottom:1.25rem;
+}
+.search-wrap{flex:1;min-width:180px;position:relative}
+.search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);
+  color:var(--taupe);pointer-events:none}
+.search-input{
+  width:100%;border:1px solid var(--sand);background:var(--cream);
+  font-family:'Lato',sans-serif;font-size:13px;color:var(--ink);
+  padding:9px 12px 9px 36px;outline:none;transition:border-color .2s;
+}
+.search-input:focus{border-color:var(--ink)}
+.filter-group{display:flex;gap:0;border:1px solid var(--sand);overflow:hidden}
+.filter-btn{
+  font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  padding:8px 14px;border:none;border-right:1px solid var(--sand);cursor:pointer;
+  background:var(--cream);color:var(--taupe);transition:all .15s;white-space:nowrap;
+}
+.filter-btn:last-child{border-right:none}
+.filter-btn.active{background:var(--ink);color:var(--cream)}
+.filter-btn:not(.active):hover{background:var(--mist)}
+.sort-select{
+  border:1px solid var(--sand);background:var(--cream);
+  font-family:'Lato',sans-serif;font-size:11px;font-weight:700;
+  letter-spacing:1px;text-transform:uppercase;
+  color:var(--taupe);padding:8px 12px;outline:none;cursor:pointer;
+}
+
+/* === GRID ==================================== */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1px;background:var(--sand)}
+.grid-wrap{border:1px solid var(--sand);margin-bottom:1.5rem}
+
+/* === PROPOSAL CARD ========================== */
+.card{
+  background:var(--cream);padding:1.25rem 1.5rem;
+  display:flex;flex-direction:column;gap:0;
+  transition:background .15s;cursor:default;position:relative;
+}
+.card:hover{background:#fefcf5}
+.card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.6rem}
+.card-docnum{
+  font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--taupe);
+}
+.card-status{
+  font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  padding:3px 9px;border:1px solid;cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.card-status[data-status="rascunho"]{color:#5a3e28;border-color:var(--sand);background:var(--mist)}
+.card-status[data-status="enviado"]{color:var(--blue);border-color:#bfdbfe;background:var(--blue-lt)}
+.card-status[data-status="aprovado"]{color:var(--green);border-color:#a7f3d0;background:var(--green-lt)}
+.card-status[data-status="cancelado"]{color:var(--red);border-color:#fca5a5;background:var(--red-lt)}
+.card-status:hover{opacity:.75}
+.card-client{
+  font-family:'Playfair Display',Georgia,serif;
+  font-size:clamp(18px,3vw,22px);font-style:italic;color:var(--ink);
+  margin-bottom:3px;line-height:1.2;
+}
+.card-event{font-size:12px;color:var(--taupe);margin-bottom:1rem;letter-spacing:.3px}
+.card-values{
+  display:flex;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;
+}
+.card-val{
+  padding:.6rem .85rem;background:var(--mist);border-left:2px solid var(--amber);
+  flex:1;min-width:100px;
+}
+.card-val-label{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+  color:var(--taupe);margin-bottom:3px}
+.card-val-amount{
+  font-family:'Playfair Display',Georgia,serif;font-size:clamp(14px,2.5vw,17px);
+  font-style:italic;font-weight:700;color:var(--ink);
+}
+.card-footer{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding-top:.75rem;border-top:1px solid var(--sand);flex-wrap:wrap;
+}
+.card-date{font-size:11px;color:var(--taupe);letter-spacing:.3px}
+.card-actions{display:flex;gap:6px;flex-wrap:wrap}
+.cta{
+  font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  padding:6px 12px;border:1px solid var(--sand);cursor:pointer;
+  background:transparent;color:var(--taupe);transition:all .15s;
+}
+.cta:hover{background:var(--mist);border-color:var(--taupe)}
+.cta.primary{background:var(--ink);color:var(--cream);border-color:var(--ink)}
+.cta.primary:hover{background:#2e2015}
+.cta.amber{background:var(--amber);color:var(--cream);border-color:var(--amber)}
+.cta.amber:hover{background:#9e6e22}
+.cta.danger{color:var(--red);border-color:var(--red-lt)}
+.cta.danger:hover{background:var(--red-lt)}
+
+/* === EMPTY STATE ============================ */
+.empty{
+  text-align:center;padding:4rem 2rem;background:var(--cream);
+  border:1px solid var(--sand);
+}
+.empty-icon{font-size:40px;margin-bottom:1rem;opacity:.3}
+.empty-title{
+  font-family:'Playfair Display',Georgia,serif;font-size:22px;
+  font-style:italic;color:var(--ink);margin-bottom:.5rem;
+}
+.empty-text{font-size:13px;color:var(--taupe);line-height:1.7;margin-bottom:1.5rem}
+
+/* === SETUP PANEL ============================ */
+#setup-panel{
+  background:var(--cream);border:1px solid var(--sand);
+  padding:clamp(1.5rem,4vw,2.5rem);margin-bottom:1.5rem;
+}
+.setup-title{
+  font-family:'Playfair Display',Georgia,serif;font-size:clamp(20px,3.5vw,26px);
+  font-style:italic;color:var(--ink);margin-bottom:.5rem;
+}
+.setup-text{font-size:13px;color:var(--taupe);line-height:1.8;margin-bottom:1.25rem}
+.setup-steps{
+  background:var(--mist);border-left:3px solid var(--amber);
+  padding:1rem 1.25rem;margin-bottom:1.25rem;
+  font-size:13px;color:var(--taupe);line-height:1.9;
+}
+.setup-steps a{color:var(--amber);text-decoration:none;border-bottom:1px solid var(--amber)}
+.setup-steps strong{color:var(--ink);font-weight:700}
+.setup-input-row{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch}
+.setup-input{
+  flex:1;min-width:200px;border:1px solid var(--sand);background:var(--mist);
+  font-family:'Lato',sans-serif;font-size:13px;color:var(--ink);
+  padding:10px 12px;outline:none;
+}
+.setup-input:focus{border-color:var(--ink)}
+.setup-note{font-size:11px;color:var(--taupe);margin-top:.6rem;line-height:1.6}
+
+/* === LOADING ================================ */
+.loading{
+  text-align:center;padding:3rem;color:var(--taupe);
+  font-size:12px;letter-spacing:2px;text-transform:uppercase;
+}
+.spinner{
+  width:24px;height:24px;border:2px solid var(--sand);border-top-color:var(--amber);
+  border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 1rem;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* === TOAST ================================== */
+#toast{
+  position:fixed;bottom:2rem;right:2rem;
+  background:var(--ink);color:var(--cream);
+  font-size:12px;font-weight:700;letter-spacing:1px;
+  padding:12px 20px;z-index:999;
+  transform:translateY(80px);opacity:0;transition:all .3s;pointer-events:none;
+}
+#toast.show{transform:translateY(0);opacity:1}
+
+/* === MODAL ================================== */
+.overlay{display:none;position:fixed;inset:0;background:rgba(27,19,11,.65);z-index:200;
+  align-items:center;justify-content:center;padding:1.5rem}
+.overlay.open{display:flex}
+.modal{background:var(--cream);padding:clamp(1.5rem,4vw,2rem);max-width:460px;width:100%;position:relative}
+.modal-close{position:absolute;top:.9rem;right:1.1rem;font-size:22px;cursor:pointer;
+  color:var(--taupe);background:none;border:none;line-height:1}
+.modal-tag{font-size:9px;font-weight:700;letter-spacing:4px;text-transform:uppercase;
+  color:var(--amber);margin-bottom:5px}
+.modal-title{font-family:'Playfair Display',serif;font-size:clamp(18px,3.5vw,24px);
+  font-style:italic;color:var(--ink);margin-bottom:1rem}
+.modal-lbl{font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;
+  color:var(--taupe);margin-bottom:5px;display:block}
+.modal-input{width:100%;border:1px solid var(--sand);background:var(--mist);
+  font-family:'Lato',sans-serif;font-size:13px;color:var(--ink);
+  padding:9px 12px;outline:none;margin-bottom:.9rem}
+.modal-input:focus{border-color:var(--ink)}
+.modal-row{display:flex;gap:8px;flex-wrap:wrap}
+select.modal-input{cursor:pointer}
+
+/* === GOLD ACCENT ============================= */
+.gold-rule{height:2px;background:var(--amber);margin-bottom:clamp(1.5rem,3vw,2rem)}
+
+/* === SECTION HEADING ======================== */
+.sec-head{display:flex;align-items:baseline;gap:.75rem;margin-bottom:.85rem}
+.sec-label{font-size:9px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:var(--amber)}
+.sec-count{font-size:11px;color:var(--taupe)}
+
+/* === NO RESULTS ============================== */
+.no-results{background:var(--cream);border:1px solid var(--sand);padding:2rem;
+  text-align:center;font-size:13px;color:var(--taupe)}
+
+@media(max-width:480px){
+  .filter-group{flex-wrap:wrap}
+  .filter-btn{flex:1;text-align:center}
+  .card-actions{width:100%;justify-content:flex-end}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ TOP BAR  -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="topbar-logo">VELI</span>
+    <div class="topbar-divider"></div>
+    <span class="topbar-sub">Orçamentos</span>
+  </div>
+  <div class="topbar-actions">
+    <button class="tbtn" onclick="openSettings()">⚙ Configurar</button>
+    <button class="tbtn primary" onclick="newProposal()">+ Nova proposta</button>
+  </div>
+</div>
+
+<!-- ══ MAIN  -->
+<div class="main">
+
+  <!-- Setup (shown only when no token) -->
+  <div id="setup-panel" style="display:none">
+    <div class="setup-title">Configure o Hub para começar</div>
+    <p class="setup-text">
+      O Hub usa o GitHub como banco de dados gratuito. Um token é necessário para ler e gravar a lista de orçamentos. A configuração é feita uma única vez.
+    </p>
+    <div class="setup-steps">
+      1. Acesse <a href="https://github.com/settings/tokens/new" target="_blank">github.com → Settings → Developer settings → Personal access tokens (classic)</a><br>
+      2. Marque apenas o escopo <strong>gist</strong><br>
+      3. Clique em "Generate token", copie e cole abaixo<br><br>
+      <strong>Hospedagem gratuita:</strong> Crie um repositório no GitHub, suba os dois arquivos (<code>index.html</code> e <code>orcamento-veli-v5.html</code>) e ative <strong>GitHub Pages</strong> nas configurações. Seu hub ficará em <code>seuusuario.github.io/nome-do-repo/</code> sem custo adicional.
+    </div>
+    <div class="setup-input-row">
+      <input class="setup-input" type="password" id="setup-token"
+        placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+      <button class="tbtn primary" onclick="applyToken()">Salvar e conectar</button>
+    </div>
+    <p class="setup-note">O token é guardado apenas no seu navegador (localStorage) e nunca é enviado a nenhum servidor além do GitHub.</p>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-bar" id="stats-bar">
+    <div class="stat">
+      <div class="stat-label">Total de propostas</div>
+      <div class="stat-value" id="stat-total">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Aprovadas</div>
+      <div class="stat-value" id="stat-approved" style="color:var(--green)">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Aguardando resposta</div>
+      <div class="stat-value" id="stat-sent" style="color:var(--blue)">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Valor total aprovado</div>
+      <div class="stat-value" id="stat-value">—<small>R$</small></div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search-wrap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input class="search-input" type="text" id="search" placeholder="Buscar por cliente ou evento…" oninput="renderCards()">
+    </div>
+    <div class="filter-group">
+      <button class="filter-btn active" data-filter="todos" onclick="setFilter(this)">Todos</button>
+      <button class="filter-btn" data-filter="rascunho" onclick="setFilter(this)">Rascunho</button>
+      <button class="filter-btn" data-filter="enviado" onclick="setFilter(this)">Enviado</button>
+      <button class="filter-btn" data-filter="aprovado" onclick="setFilter(this)">Aprovado</button>
+    </div>
+    <select class="sort-select" id="sort-select" onchange="renderCards()">
+      <option value="newest">Mais recentes</option>
+      <option value="oldest">Mais antigos</option>
+      <option value="client">Cliente A–Z</option>
+      <option value="value">Maior valor</option>
+    </select>
+  </div>
+
+  <!-- Cards -->
+  <div id="cards-section">
+    <div class="loading" id="loading-state">
+      <div class="spinner"></div>
+      Carregando propostas…
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- ══ SETTINGS MODAL  -->
+<div class="overlay" id="settings-modal" onclick="overlayClick(event,'settings-modal')">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('settings-modal')">×</button>
+    <div class="modal-tag">Configurações</div>
+    <div class="modal-title">GitHub &amp; Hub</div>
+    <label class="modal-lbl">Token do GitHub</label>
+    <input class="modal-input" type="password" id="settings-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+    <label class="modal-lbl">ID do Gist registro <span style="font-weight:300;text-transform:none;font-size:10px;color:var(--taupe)">(preenchido automaticamente)</span></label>
+    <input class="modal-input" type="text" id="settings-gist" placeholder="automático" readonly style="color:var(--taupe)">
+    <div class="modal-row">
+      <button class="cta primary" onclick="saveSettings()">Salvar</button>
+      <button class="cta danger" onclick="clearAll()">Limpar tudo</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ EDIT PROPOSAL MODAL  -->
+<div class="overlay" id="edit-modal" onclick="overlayClick(event,'edit-modal')">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('edit-modal')">×</button>
+    <div class="modal-tag">Editar metadados</div>
+    <div class="modal-title">Atualizar proposta</div>
+    <input type="hidden" id="edit-id">
+    <label class="modal-lbl">Cliente</label>
+    <input class="modal-input" type="text" id="edit-client" placeholder="Nome do cliente">
+    <label class="modal-lbl">Evento / projeto</label>
+    <input class="modal-input" type="text" id="edit-event" placeholder="Ex: Lançamento de disco">
+    <label class="modal-lbl">Status</label>
+    <select class="modal-input" id="edit-status">
+      <option value="rascunho">Rascunho</option>
+      <option value="enviado">Enviado</option>
+      <option value="aprovado">Aprovado</option>
+      <option value="cancelado">Cancelado</option>
+    </select>
+    <label class="modal-lbl">Link da proposta</label>
+    <input class="modal-input" type="text" id="edit-link" placeholder="https://…">
+    <label class="modal-lbl">Link curto (is.gd)</label>
+    <input class="modal-input" type="text" id="edit-short" placeholder="https://is.gd/…">
+    <label class="modal-lbl">Notas internas</label>
+    <input class="modal-input" type="text" id="edit-notes" placeholder="Observações…">
+    <button class="cta primary" onclick="saveEdit()" style="width:100%;justify-content:center">Salvar alterações</button>
+  </div>
+</div>
+
+<!-- ══ ADD PROPOSAL MODAL  -->
+<div class="overlay" id="add-modal" onclick="overlayClick(event,'add-modal')">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('add-modal')">×</button>
+    <div class="modal-tag">Nova proposta</div>
+    <div class="modal-title">Registrar orçamento</div>
+    <label class="modal-lbl">Cliente</label>
+    <input class="modal-input" type="text" id="add-client" placeholder="Nome do cliente ou empresa">
+    <label class="modal-lbl">Evento / projeto</label>
+    <input class="modal-input" type="text" id="add-event" placeholder="Ex: Lançamento de disco">
+    <label class="modal-lbl">Valor aproximado (R$) <span style="font-weight:300;text-transform:none">(opcional)</span></label>
+    <input class="modal-input" type="number" id="add-value" placeholder="0,00" min="0">
+    <label class="modal-lbl">Link da proposta <span style="font-weight:300;text-transform:none">(opcional — preencher após publicar)</span></label>
+    <input class="modal-input" type="text" id="add-link" placeholder="https://…">
+    <div class="modal-row">
+      <button class="cta primary" onclick="createProposal(false)">Criar rascunho</button>
+      <button class="cta amber" onclick="createProposal(true)">Criar e abrir orçamento</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TOAST  -->
+<div id="toast"></div>
+
+<script>
+/* ==============================================
+   CONSTANTS & REGISTRY
+============================================== */
+const QUOTE_FILE = 'orcamento-veli-v5.html'; // same folder
+
+/* ==============================================
+   STATE
+============================================== */
+let proposals = [];   // local list
+let activeFilter = 'todos';
+
+/* ==============================================
+   STORAGE HELPERS
+============================================== */
+const getToken   = () => localStorage.getItem('veli_gh_token') || '';
+const getRegId   = () => localStorage.getItem('veli_registry_id') || '';
+const setRegId   = id => localStorage.setItem('veli_registry_id', id);
+
+function saveLocal() {
+  localStorage.setItem('veli_proposals', JSON.stringify(proposals));
+}
+function loadLocal() {
+  try { proposals = JSON.parse(localStorage.getItem('veli_proposals') || '[]'); }
+  catch { proposals = []; }
+}
+
+/* ==============================================
+   GITHUB GIST REGISTRY
+============================================== */
+const GH = 'https://api.github.com/gists';
+const ghHeaders = () => ({
+  'Authorization': 'Bearer ' + getToken(),
+  'Content-Type': 'application/json',
+  'Accept': 'application/vnd.github+json'
+});
+
+async function loadRegistry() {
+  const id = getRegId();
+  if (!id) return false;
+  try {
+    const r = await fetch(GH + '/' + id, { headers: { ...ghHeaders(), 'Cache-Control': 'no-cache' } });
+    if (!r.ok) {
+      if (r.status === 404) { localStorage.removeItem('veli_registry_id'); return false; }
+      return false;
+    }
+    const data = await r.json();
+    const content = data.files['veli-registry.json']?.content;
+    if (content) {
+      const remote = JSON.parse(content);
+      // Merge: remote is source of truth, but keep any local-only fields
+      proposals = remote;
+      saveLocal();
+    }
+    return true;
+  } catch { return false; }
+}
+
+async function pushRegistry() {
+  const token = getToken();
+  if (!token) return;
+  const content = JSON.stringify(proposals, null, 2);
+  const id = getRegId();
+  try {
+    if (id) {
+      await fetch(GH + '/' + id, {
+        method: 'PATCH', headers: ghHeaders(),
+        body: JSON.stringify({ files: { 'veli-registry.json': { content } } })
+      });
+    } else {
+      const r = await fetch(GH, {
+        method: 'POST', headers: ghHeaders(),
+        body: JSON.stringify({
+          description: 'VELI — Registro de orçamentos',
+          public: false,
+          files: { 'veli-registry.json': { content } }
+        })
+      });
+      if (r.ok) {
+        const data = await r.json();
+        setRegId(data.id);
+        document.getElementById('settings-gist').value = data.id;
+      }
+    }
+  } catch(e) { console.warn('Push registry failed:', e); }
+}
+
+/* ==============================================
+   BOOT
+============================================== */
+async function boot() {
+  loadLocal();
+  const token = getToken();
+
+  if (!token) {
+    document.getElementById('setup-panel').style.display = 'block';
+    document.getElementById('loading-state').style.display = 'none';
+    renderCards();
+    return;
+  }
+
+  // Try to load from GitHub
+  const loaded = await loadRegistry();
+  if (!loaded && proposals.length === 0) {
+    // First time with token but no registry yet
+    await pushRegistry(); // creates the registry gist
+  }
+
+  document.getElementById('loading-state').style.display = 'none';
+  renderCards();
+  updateStats();
+}
+
+/* ==============================================
+   RENDER CARDS
+============================================== */
+const STATUS_LABELS = {
+  rascunho: 'Rascunho', enviado: 'Enviado',
+  aprovado: 'Aprovado', cancelado: 'Cancelado'
+};
+
+function fmt(v) {
+  return Number(v || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR');
+}
+
+function filterProposals() {
+  const q = document.getElementById('search')?.value.toLowerCase() || '';
+  const sort = document.getElementById('sort-select')?.value || 'newest';
+  let list = proposals.filter(p => {
+    const matchFilter = activeFilter === 'todos' || p.status === activeFilter;
+    const matchSearch = !q ||
+      (p.clientName || '').toLowerCase().includes(q) ||
+      (p.event || '').toLowerCase().includes(q) ||
+      (p.docNum || '').toLowerCase().includes(q);
+    return matchFilter && matchSearch;
+  });
+  list.sort((a, b) => {
+    if (sort === 'newest') return new Date(b.createdAt) - new Date(a.createdAt);
+    if (sort === 'oldest') return new Date(a.createdAt) - new Date(b.createdAt);
+    if (sort === 'client') return (a.clientName || '').localeCompare(b.clientName || '');
+    if (sort === 'value')  return (b.value || 0) - (a.value || 0);
+    return 0;
+  });
+  return list;
+}
+
+function renderCards() {
+  const sec = document.getElementById('cards-section');
+  const list = filterProposals();
+
+  if (proposals.length === 0) {
+    sec.innerHTML = `<div class="empty">
+      <div class="empty-icon">✦</div>
+      <div class="empty-title">Nenhuma proposta ainda</div>
+      <p class="empty-text">Crie sua primeira proposta clicando em <strong>Nova proposta</strong> no canto superior direito.</p>
+      <button class="cta primary" onclick="newProposal()" style="margin:0 auto">+ Nova proposta</button>
+    </div>`;
+    return;
+  }
+
+  if (list.length === 0) {
+    sec.innerHTML = `<div class="no-results">Nenhuma proposta encontrada para este filtro.</div>`;
+    return;
+  }
+
+  const secHead = document.createElement('div');
+  secHead.className = 'sec-head';
+  secHead.innerHTML = `<span class="sec-label">Propostas</span><span class="sec-count">${list.length} encontrada${list.length !== 1 ? 's' : ''}</span>`;
+
+  const gridWrap = document.createElement('div');
+  gridWrap.className = 'grid-wrap';
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+
+  list.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const hasLink = p.shortUrl || p.gistUrl;
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="card-docnum">${p.docNum || '—'}</div>
+        <span class="card-status" data-status="${p.status || 'rascunho'}"
+          onclick="cycleStatus('${p.id}')"
+          title="Clique para mudar status">
+          ${STATUS_LABELS[p.status] || 'Rascunho'}
+        </span>
+      </div>
+      <div class="card-client">${p.clientName || 'Cliente não definido'}</div>
+      <div class="card-event">${p.event || '—'}</div>
+      ${p.value ? `<div class="card-values">
+        <div class="card-val">
+          <div class="card-val-label">Valor</div>
+          <div class="card-val-amount">R$ ${fmt(p.value)}</div>
+        </div>
+      </div>` : ''}
+      ${p.notes ? `<div style="font-size:12px;color:var(--taupe);margin-bottom:.75rem;font-style:italic">${p.notes}</div>` : ''}
+      <div class="card-footer">
+        <div class="card-date">${fmtDate(p.updatedAt || p.createdAt)}</div>
+        <div class="card-actions">
+          <button class="cta primary" onclick="openFullEditor('${p.id}')" title="Abrir editor completo">Editar proposta</button>
+          ${hasLink ? `<button class="cta" onclick="copyLink('${p.shortUrl || p.gistUrl}', this)" title="Copiar link">↗ Link</button>` : ''}
+          ${hasLink ? `<a class="cta" href="${p.shortUrl || p.gistUrl}" target="_blank" style="text-decoration:none">Ver -></a>` : ''}
+          <button class="cta" onclick="openEdit('${p.id}')" title="Editar metadados">⋯</button>
+          <button class="cta danger" onclick="deleteProposal('${p.id}')">×</button>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+
+  gridWrap.appendChild(grid);
+  sec.innerHTML = '';
+  sec.appendChild(secHead);
+  sec.appendChild(gridWrap);
+  updateStats();
+}
+
+/* ==============================================
+   STATS
+============================================== */
+function updateStats() {
+  const total    = proposals.length;
+  const approved = proposals.filter(p => p.status === 'aprovado').length;
+  const sent     = proposals.filter(p => p.status === 'enviado').length;
+  const totalVal = proposals.filter(p => p.status === 'aprovado')
+                            .reduce((s, p) => s + (p.value || 0), 0);
+
+  document.getElementById('stat-total').textContent    = total || '—';
+  document.getElementById('stat-approved').textContent = approved || '—';
+  document.getElementById('stat-sent').textContent     = sent || '—';
+  document.getElementById('stat-value').innerHTML      = totalVal
+    ? `${fmt(totalVal)}<small>R$</small>` : '—<small>R$</small>';
+}
+
+/* ==============================================
+   FILTER
+============================================== */
+function setFilter(btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  activeFilter = btn.dataset.filter;
+  renderCards();
+}
+
+/* ==============================================
+   CYCLE STATUS
+============================================== */
+const STATUS_CYCLE = ['rascunho', 'enviado', 'aprovado', 'cancelado'];
+async function cycleStatus(id) {
+  const p = proposals.find(x => x.id === id);
+  if (!p) return;
+  const idx = STATUS_CYCLE.indexOf(p.status || 'rascunho');
+  p.status = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
+  p.updatedAt = new Date().toISOString();
+  saveLocal();
+  renderCards();
+  toast('Status: ' + STATUS_LABELS[p.status]);
+  await pushRegistry();
+}
+
+/* ==============================================
+   CREATE PROPOSAL
+============================================== */
+function newProposal() {
+  document.getElementById('add-client').value = '';
+  document.getElementById('add-event').value = '';
+  document.getElementById('add-value').value = '';
+  document.getElementById('add-link').value = '';
+  openModal('add-modal');
+}
+
+async function createProposal(openEditor) {
+  const client = document.getElementById('add-client').value.trim() || 'Cliente';
+  const event  = document.getElementById('add-event').value.trim() || '';
+  const value  = parseFloat(document.getElementById('add-value').value) || 0;
+  const link   = document.getElementById('add-link').value.trim() || '';
+
+  const now = new Date();
+  const docNum = '#' + String(now.getFullYear()).slice(-2)
+    + String(now.getMonth()+1).padStart(2,'0')
+    + String(now.getDate()).padStart(2,'0')
+    + '-' + String(proposals.length + 1).padStart(2,'0');
+
+  const p = {
+    id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36),
+    docNum, clientName: client, event, value, status: 'rascunho',
+    gistUrl: link, shortUrl: '', notes: '',
+    createdAt: now.toISOString(), updatedAt: now.toISOString()
+  };
+  proposals.unshift(p);
+  saveLocal();
+  closeModal('add-modal');
+  renderCards();
+  toast('Proposta criada: ' + docNum);
+  await pushRegistry();
+
+  if (openEditor) {
+    // Pre-seed empty state so the editor knows its docNum
+    const saveKey = 'veli_editor_' + docNum.replace(/[^a-z0-9]/gi, '_');
+    if (!localStorage.getItem(saveKey)) {
+      // Store a minimal seed so the edit URL resolves
+      const seed = { version: 2, savedAt: now.toISOString(), state: { mode:'options', items:[], frags:[], fragIntro:'', nextItemId:1, nextFragId:1 }, fields: { clientName: client, clientEvent: event } };
+      try { localStorage.setItem(saveKey, JSON.stringify(seed)); } catch {}
+    }
+    window.open(QUOTE_FILE + '?edit=' + encodeURIComponent(docNum), '_blank');
+  }
+}
+
+/* ==============================================
+   EDIT PROPOSAL
+============================================== */
+function openEdit(id) {
+  const p = proposals.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('edit-id').value     = id;
+  document.getElementById('edit-client').value = p.clientName || '';
+  document.getElementById('edit-event').value  = p.event || '';
+  document.getElementById('edit-status').value = p.status || 'rascunho';
+  document.getElementById('edit-link').value   = p.gistUrl || '';
+  document.getElementById('edit-short').value  = p.shortUrl || '';
+  document.getElementById('edit-notes').value  = p.notes || '';
+  openModal('edit-modal');
+}
+
+async function saveEdit() {
+  const id = document.getElementById('edit-id').value;
+  const p  = proposals.find(x => x.id === id);
+  if (!p) return;
+  p.clientName = document.getElementById('edit-client').value.trim();
+  p.event      = document.getElementById('edit-event').value.trim();
+  p.status     = document.getElementById('edit-status').value;
+  p.gistUrl    = document.getElementById('edit-link').value.trim();
+  p.shortUrl   = document.getElementById('edit-short').value.trim();
+  p.notes      = document.getElementById('edit-notes').value.trim();
+  p.updatedAt  = new Date().toISOString();
+  saveLocal();
+  closeModal('edit-modal');
+  renderCards();
+  toast('Proposta atualizada');
+  await pushRegistry();
+}
+
+/* ==============================================
+   DELETE
+============================================== */
+async function deleteProposal(id) {
+  const p = proposals.find(x => x.id === id);
+  if (!p) return;
+  if (!confirm(`Remover "${p.clientName || p.docNum}" da lista? (o link publicado não é afetado)`)) return;
+  proposals = proposals.filter(x => x.id !== id);
+  saveLocal();
+  renderCards();
+  toast('Proposta removida');
+  await pushRegistry();
+}
+
+/* ==============================================
+   COPY LINK
+============================================== */
+function copyLink(url, btn) {
+  if (!url) { toast('Nenhum link disponível'); return; }
+  navigator.clipboard.writeText(url).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copiado';
+    setTimeout(() => btn.textContent = orig, 2000);
+  });
+}
+
+/* ==============================================
+   SETTINGS
+============================================== */
+function openSettings() {
+  document.getElementById('settings-token').value = getToken();
+  document.getElementById('settings-gist').value  = getRegId();
+  openModal('settings-modal');
+}
+
+async function saveSettings() {
+  const token = document.getElementById('settings-token').value.trim();
+  if (token) localStorage.setItem('veli_gh_token', token);
+  closeModal('settings-modal');
+  document.getElementById('setup-panel').style.display = 'none';
+  toast('Configurações salvas');
+  await boot();
+}
+
+function clearAll() {
+  if (!confirm('Limpar token e dados locais? As propostas no GitHub não serão afetadas.')) return;
+  ['veli_gh_token','veli_registry_id','veli_proposals'].forEach(k => localStorage.removeItem(k));
+  closeModal('settings-modal');
+  location.reload();
+}
+
+/* ==============================================
+   SETUP TOKEN
+============================================== */
+async function applyToken() {
+  const token = document.getElementById('setup-token').value.trim();
+  if (!token) { toast('Cole o token primeiro'); return; }
+  localStorage.setItem('veli_gh_token', token);
+  document.getElementById('setup-panel').style.display = 'none';
+  await boot();
+}
+
+/* ==============================================
+   MODAL HELPERS
+============================================== */
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function overlayClick(e, id) { if (e.target.id === id) closeModal(id); }
+
+/* ==============================================
+   TOAST
+============================================== */
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+/* ==============================================
+   INIT
+============================================== */
+/* ==============================================
+   OPEN FULL PROPOSAL EDITOR
+============================================== */
+function openFullEditor(id) {
+  const p = proposals.find(x => x.id === id);
+  if (!p) return;
+  const editorFile = 'orcamento-veli-v5.html';
+  const docNum = p.docNum;
+  const saveKey = 'veli_editor_' + docNum.replace(/[^a-z0-9]/gi, '_');
+  const hasSaved = !!localStorage.getItem(saveKey);
+
+  if (hasSaved) {
+    window.open(editorFile + '?edit=' + encodeURIComponent(docNum), '_blank');
+  } else if (p.stateUrl) {
+    toast('Carregando estado da proposta…');
+    fetch(p.stateUrl + '?t=' + Date.now(), { cache: 'no-store' })
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(data => {
+        try { localStorage.setItem(saveKey, JSON.stringify(data)); } catch {}
+        window.open(editorFile + '?edit=' + encodeURIComponent(docNum), '_blank');
+      })
+      .catch(() => {
+        if (confirm('Estado não encontrado para ' + docNum + '. Abrir editor em branco?'))
+          window.open(editorFile, '_blank');
+      });
+  } else {
+    if (confirm('Proposta sem estado salvo. Abrir editor em branco?
+
+(O editor cria um vínculo automaticamente quando publicado.)'))
+      window.open(editorFile, '_blank');
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
